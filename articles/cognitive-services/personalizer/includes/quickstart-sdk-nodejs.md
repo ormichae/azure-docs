@@ -100,7 +100,7 @@ const personalizerClient = new Personalizer.PersonalizerClient(credentials, base
 
 ## Get content choices represented as actions
 
-Actions represent the content choices from which you want Personalizer to select the best content item. Add the following methods to the Program class to represent the set of actions  and their features.
+Actions represent the content choices from which you want Personalizer to select the best content item. Add the following methods to the script to represent the set of actions  and their features.
 
 ```javascript
 function getContextFeaturesList() {
@@ -189,6 +189,27 @@ function getActionsList() {
 }
 ```
 
+## Get feedback for personalizer decision
+
+
+Add the following method to the script. You will signal if Personalizer made a good decision for each slot through command line prompt, 
+
+```javascript
+function getReward() {
+    let answer = readline.question('\nIs this correct? (y/n)\n').toUpperCase();
+    if (answer === 'Y') {
+        console.log('\nGreat! Enjoy your food.\n');
+        return 1;
+    }
+    else if (answer === 'N') {
+        console.log('\nYou didn\'t like the recommended food choice.\n');
+        return 0;
+    }
+    console.log('\nEntered choice is invalid. Service assumes that you didn't like the recommended food choice.\n');
+    return 0;
+}
+```
+
 ## Create the learning loop
 
 The Personalizer learning loop is a cycle of [Rank](#request-the-best-action) and [Reward](#send-a-reward) calls. In this quickstart, each Rank call, to personalize the content, is followed by a Reward call to tell Personalizer how well the service performed.
@@ -238,7 +259,10 @@ do {
 
   await personalizerClient.events.reward(rankRequest.eventId, rewardRequest);
 
-  runLoop = continueLoop();
+  let answer = readline.question('\nPress q to break, any other key to continue:\n').toUpperCase();
+      if (answer === 'Q') {
+          runLoop = false;
+      }
 
 } while (runLoop);
 ```
@@ -249,6 +273,7 @@ Add the following methods, which [get the content choices](#get-content-choices-
 
 * getActionsList
 * getContextFeaturesList
+* getReward
 
 ## Request the best action
 
