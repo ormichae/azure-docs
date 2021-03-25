@@ -72,7 +72,7 @@ using System.Threading.Tasks;
 
 [comment]: <> (TODO: change links to ccb docs)
 
-To ask for the single best item of the content for each slot, create a [RankRequest], then send a post request to the [multislot/rank] endpoint (/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.rank). The response is then parsed into a [RankResponse].
+To ask for the single best item of the content for each slot, create a [MultiSlotRankRequest], then send a post request to the [multislot/rank] endpoint (/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.rank). The response is then parsed into a [MultiSlotRankResponse].
 
 To send a reward score to Personalizer, create a [MultiSlotReward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.models.rewardrequest), then send a pose request to [multislot/events/{eventId}/reward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.reward).
 
@@ -246,20 +246,20 @@ private static IList<Context> GetContext(string time, string device)
 Send post requests to the Personalizer endpoint for multi-slot rank and reward calls.
 
 ```csharp
-private static async Task<RankResponse> SendRank(HttpClient client, string rankRequestBody, string rankUrl)
+private static async Task<MultiSlotRankResponse> SendMultiSlotRank(HttpClient client, string rankRequestBody, string rankUrl)
 {
     var rankBuilder = new UriBuilder(new Uri(rankUrl));
     HttpRequestMessage rankRequest = new HttpRequestMessage(HttpMethod.Post, rankBuilder.Uri);
     rankRequest.Content = new StringContent(rankRequestBody, Encoding.UTF8, "application/json");
 
     HttpResponseMessage response = await client.SendAsync(rankRequest);
-    RankResponse rankResponse = JsonSerializer.Deserialize<RankResponse>(await response.Content.ReadAsByteArrayAsync());
+    MultiSlotRankResponse rankResponse = JsonSerializer.Deserialize<MultiSlotRankResponse>(await response.Content.ReadAsByteArrayAsync());
     return rankResponse;
 }
 ```
 
 ```csharp
-private static async Task SendReward(HttpClient client, string rewardRequestBody, string rewardUrlBase, string eventId)
+private static async Task SendMultiSlotReward(HttpClient client, string rewardRequestBody, string rewardUrlBase, string eventId)
 {
     string rewardUrl = String.Concat(rewardUrlBase, eventId, "/reward");
     var rewardBuilder = new UriBuilder(new Uri(rewardUrl));
@@ -311,7 +311,7 @@ private class Context
 ```
 
 ```csharp
-private class RankRequest
+private class MultiSlotRankRequest
 {
     [JsonPropertyName("contextFeatures")]
     public IList<Context> ContextFeatures { get; set; }
@@ -331,7 +331,7 @@ private class RankRequest
 ```
 
 ```csharp
-private class RankResponse
+private class MultiSlotRankResponse
 {
     [JsonPropertyName("slots")]
     public IList<SlotResponse> Slots { get; set; }
@@ -373,27 +373,28 @@ private class SlotReward
 
 ## Create the learning loop
 
-The Personalizer learning loop is a cycle of [Rank](#request-the-best-action) and [Reward](#send-a-reward) calls. In this quickstart, each Rank call, to personalize the content, is followed by a Reward call to tell Personalizer how well the service performed.
+The Personalizer learning loop is a cycle of [MultiSlotRank](#request-the-best-action) and [MultiSlotReward](#send-a-reward) calls. In this quickstart, each Rank call, to personalize the content, is followed by a Reward call to tell Personalizer how well the service performed.
 
 The following code loops through a cycle of asking the user their preferences through the command line, sending that information to Personalizer to select the best action for each slot, presenting the selection to the customer to choose from among the list, then sending a reward score to Personalizer signaling how well the service did in its selection.
 
 ```csharp
 static async Task Main(string[] args)
 {
-    int iteration = 1;
-    bool runLoop = true;
-    IList<Action> actions = GetActions();
-    IList<Slot> slots = GetSlots();
-    using (var client = new HttpClient())
-    {
-        Console.WriteLine($"Welcome to this Personalizer Quickstart!\n" +
+    Console.WriteLine($"Welcome to this Personalizer Quickstart!\n" +
             $"This code will help you understand how to use the Personalizer APIs (multislot rank and multislot reward).\n" +
             $"Each iteration represents a user interaction and will demonstrate how context, actions, slots, and rewards work.\n" +
             $"Note: Personalizer AI models learn from a large number of user interactions:\n" +
             $"You won't be able to tell the difference in what Personalizer returns by simulating a few events by hand.\n" +
             $"If you want a sample that focuses on seeing how Personalizer learns, see the Python Notebook sample.");
 
+    IList<Action> actions = GetActions();
+    IList<Slot> slots = GetSlots();
+
+    using (var client = new HttpClient())
+    {
         client.DefaultRequestHeaders.Add("apim-subscription-id", ResourceKey);
+        int iteration = 1;
+        bool runLoop = true;
         do
         {
             Console.WriteLine($"\nIteration: {iteration++}");
@@ -404,7 +405,7 @@ static async Task Main(string[] args)
 
             string eventId = Guid.NewGuid().ToString();
 
-            string rankRequestBody = JsonSerializer.Serialize(new RankRequest()
+            string rankRequestBody = JsonSerializer.Serialize(new MultiSlotRankRequest()
             {
                 ContextFeatures = context,
                 Actions = actions,
@@ -413,9 +414,8 @@ static async Task Main(string[] args)
                 DeferActivation = false
             });
 
-
             //Ask Personalizer what action to show for each slot
-            RankResponse rankResponse = await SendRank(client, rankRequestBody, RankUrl);
+            MultiSlotRankResponse rankResponse = await SendMultiSlotRank(client, rankRequestBody, RankUrl);
 
             MultiSlotReward rewards = new MultiSlotReward()
             {
@@ -444,13 +444,16 @@ static async Task Main(string[] args)
                 }
                 else
                 {
+                    reward.Value = 0;
                     Console.WriteLine("\nEntered choice is invalid. Service assumes that you didn't like the recommended item.");
                 }
                 rewards.Reward.Add(reward);
             }
 
             string rewardRequestBody = JsonSerializer.Serialize(rewards);
-            await SendReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
+
+            // Send the reward for the action based on user response for each slot.
+            await SendMultiSlotReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
 
             Console.WriteLine("\nPress q to break, any other key to continue:");
             runLoop = !(GetKey() == "Q");
@@ -459,8 +462,7 @@ static async Task Main(string[] args)
 }
 ```
 Take a closer look at the rank and reward calls in the following sections.
-
-Add the following methods, which [get the content choices](#get-content-choices-represented-as-actions), and [get slots](#get-slots) before running the code file:
+Add the following methods, which [get the content choices](#get-content-choices-represented-as-actions), [get slots](#get-slots), and [send multi-slot rank and reward requests](#make-HTTP-requests) before running the code file:
 
 * `GetActions`
 * `GetSlots`
@@ -468,21 +470,23 @@ Add the following methods, which [get the content choices](#get-content-choices-
 * `GetTimeOfDayForContext`
 * `GetKey`
 * `GetContext`
+* `SendMultiSlotRank`
+* `SendMultiSlotReward`
 
 Add the following classes, which [construct the bodies of the rank/reward requests and parse their responses](#classes-for-constructing-rank/reward-requests/responses) before running the code file:
 
 * `Action`
 * `Slot`
 * `Context`
-* `RankRequest`
-* `RankResponse`
+* `MultiSlotRankRequest`
+* `MultiSlotRankResponse`
 * `SlotResponse`
 * `MultiSlotReward`
 * `SlotReward`
 
 ## Request the best action
 
-To complete the Rank request, the program asks the user's preferences to create a `context` of the content choices. The request body contains the context features, actions and their features, and a unique event ID, to receive the response. The `SendRank` method needs the HTTP client, request body and url to send the requst.
+To complete the Rank request, the program asks the user's preferences to create a `context` of the content choices. The request body contains the context features, actions and their features, and a unique event ID, to receive the response. The `SendMultiSlotRank` method needs the HTTP client, request body and url to send the requst.
 
 This quickstart has simple context features of time of day and user device. In production systems, determining and [evaluating](../concept-feature-evaluation.md) [actions and features](../concepts-features.md) can be a non-trivial matter.
 
@@ -494,7 +498,7 @@ IList<Context> context = GetContext(timeOfDayFeature, deviceFeature);
 
 string eventId = Guid.NewGuid().ToString();
 
-string rankRequestBody = JsonSerializer.Serialize(new RankRequest()
+string rankRequestBody = JsonSerializer.Serialize(new MultiSlotRankRequest()
 {
     ContextFeatures = context,
     Actions = actions,
@@ -504,7 +508,7 @@ string rankRequestBody = JsonSerializer.Serialize(new RankRequest()
 });
 
 //Ask Personalizer what action to show for each slot
-RankResponse rankResponse = await SendRank(client, rankRequestBody, RankUrl);
+MultiSlotRankResponse rankResponse = await SendMultiSlotRank(client, rankRequestBody, RankUrl);
 ```
 
 ## Send a reward
@@ -550,7 +554,7 @@ for (int i = 0; i < rankResponse.Slots.Count(); ++i)
 string rewardRequestBody = JsonSerializer.Serialize(rewards);
 
 // Send the reward for the action based on user response for each slot.
-await SendReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
+await SendMultiSlotReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
 ```
 
 ## Run the program
