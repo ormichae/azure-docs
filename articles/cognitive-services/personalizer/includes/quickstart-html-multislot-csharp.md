@@ -74,7 +74,7 @@ using System.Threading.Tasks;
 
 To ask for the single best item of the content for each slot, create a [MultiSlotRankRequest], then send a post request to the [multislot/rank] endpoint (/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.rank). The response is then parsed into a [MultiSlotRankResponse].
 
-To send a reward score to Personalizer, create a [MultiSlotReward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.models.rewardrequest), then send a pose request to [multislot/events/{eventId}/reward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.reward).
+To send a reward score to Personalizer, create a [MultiSlotReward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.models.rewardrequest), then send a post request to [multislot/events/{eventId}/reward](/dotnet/api/microsoft.azure.cognitiveservices.personalizer.personalizerclientextensions.reward).
 
 Determining the reward score, in this quickstart is trivial. In a production system, the determination of what impacts the [reward score](../concept-rewards.md) and by how much can be a complex process, that you may decide to change over time. This design decision should be one of the primary decisions in your Personalizer architecture.
 
@@ -83,8 +83,8 @@ Determining the reward score, in this quickstart is trivial. In a production sys
 These code snippets show you how to do the following tasks by sending HTTP requests for .NET:
 
 * [Create base URL's](#create-base-URL's)
-* [Rank API](#request-the-best-action)
-* [Reward API](#send-a-reward)
+* [Multi-Slot Rank API](#request-the-best-action)
+* [Multi-Slot Reward API](#send-a-reward)
 
 
 ## Create Base URL's
