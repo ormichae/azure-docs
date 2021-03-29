@@ -105,8 +105,8 @@ private static readonly string PersonalizationBaseUrl = "https://REPLACE-WITH-YO
 Next, construct the Rank and Reward URL's.
 
 ```csharp
-private static string RankUrl = string.Concat(PersonalizationBaseUrl, "personalizer/v1.1-preview.1/multislot/rank");
-private static string RewardUrlBase = string.Concat(PersonalizationBaseUrl, "personalizer/v1.1-preview.1/multislot/events/");
+private static string MultiSlotRankUrl = string.Concat(PersonalizationBaseUrl, "personalizer/v1.1-preview.1/multislot/rank");
+private static string MultiSlotRewardUrlBase = string.Concat(PersonalizationBaseUrl, "personalizer/v1.1-preview.1/multislot/events/");
 ```
 
 ## Get content choices represented as actions
@@ -415,19 +415,19 @@ static async Task Main(string[] args)
             });
 
             //Ask Personalizer what action to show for each slot
-            MultiSlotRankResponse rankResponse = await SendMultiSlotRank(client, rankRequestBody, RankUrl);
+            MultiSlotRankResponse multiSlotRankResponse = await SendMultiSlotRank(client, rankRequestBody, MultiSlotRankUrl);
 
-            MultiSlotReward rewards = new MultiSlotReward()
+            MultiSlotReward multiSlotRewards = new MultiSlotReward()
             {
                 Reward = new List<SlotReward>()
             };
 
-            for (int i = 0; i < rankResponse.Slots.Count(); ++i)
+            for (int i = 0; i < multiSlotRankResponse.Slots.Count(); ++i)
             {
-                Console.WriteLine($"\nPersonalizer service decided you should display: { rankResponse.Slots[i].RewardActionId} in slot {rankResponse.Slots[i].Id}. Is this correct? (y/n)");
+                Console.WriteLine($"\nPersonalizer service decided you should display: { multiSlotRankResponse.Slots[i].RewardActionId} in slot {multiSlotRankResponse.Slots[i].Id}. Is this correct? (y/n)");
                 SlotReward reward = new SlotReward()
                 {
-                    SlotId = rankResponse.Slots[i].Id
+                    SlotId = multiSlotRankResponse.Slots[i].Id
                 };
 
                 string answer = GetKey();
@@ -447,13 +447,13 @@ static async Task Main(string[] args)
                     reward.Value = 0;
                     Console.WriteLine("\nEntered choice is invalid. Service assumes that you didn't like the recommended item.");
                 }
-                rewards.Reward.Add(reward);
+                multiSlotRewards.Reward.Add(reward);
             }
 
-            string rewardRequestBody = JsonSerializer.Serialize(rewards);
+            string rewardRequestBody = JsonSerializer.Serialize(multiSlotRewards);
 
             // Send the reward for the action based on user response for each slot.
-            await SendMultiSlotReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
+            await SendMultiSlotReward(client, rewardRequestBody, MultiSlotRewardUrlBase, multiSlotRankResponse.EventId);
 
             Console.WriteLine("\nPress q to break, any other key to continue:");
             runLoop = !(GetKey() == "Q");
@@ -508,7 +508,7 @@ string rankRequestBody = JsonSerializer.Serialize(new MultiSlotRankRequest()
 });
 
 //Ask Personalizer what action to show for each slot
-MultiSlotRankResponse rankResponse = await SendMultiSlotRank(client, rankRequestBody, RankUrl);
+MultiSlotRankResponse multiSlotRankResponse = await SendMultiSlotRank(client, rankRequestBody, MultiSlotRankUrl);
 ```
 
 ## Send a reward
@@ -518,17 +518,17 @@ To get the reward score to send in the Reward request, the program gets the user
 This quickstart assigns a simple number as a reward score, either a zero or a 1. In production systems, determining when and what to send to the [Reward](../concept-rewards.md) call can be a non-trivial matter, depending on your specific needs.
 
 ```csharp
-MultiSlotReward rewards = new MultiSlotReward()
+MultiSlotReward multiSlotRewards = new MultiSlotReward()
 {
     Reward = new List<SlotReward>()
 };
 
-for (int i = 0; i < rankResponse.Slots.Count(); ++i)
+for (int i = 0; i < multiSlotRankResponse.Slots.Count(); ++i)
 {
-    Console.WriteLine($"\nPersonalizer service decided you should display: { rankResponse.Slots[i].RewardActionId} in slot {rankResponse.Slots[i].Id}. Is this correct? (y/n)");
+    Console.WriteLine($"\nPersonalizer service decided you should display: { multiSlotRankResponse.Slots[i].RewardActionId} in slot {multiSlotRankResponse.Slots[i].Id}. Is this correct? (y/n)");
     SlotReward reward = new SlotReward()
     {
-        SlotId = rankResponse.Slots[i].Id
+        SlotId = multiSlotRankResponse.Slots[i].Id
     };
 
     string answer = GetKey();
@@ -548,13 +548,13 @@ for (int i = 0; i < rankResponse.Slots.Count(); ++i)
         reward.Value = 0;
         Console.WriteLine("\nEntered choice is invalid. Service assumes that you didn't like the recommended item.");
     }
-    rewards.Reward.Add(reward);
+    multiSlotRewards.Reward.Add(reward);
 }
 
-string rewardRequestBody = JsonSerializer.Serialize(rewards);
+string rewardRequestBody = JsonSerializer.Serialize(multiSlotRewards);
 
 // Send the reward for the action based on user response for each slot.
-await SendMultiSlotReward(client, rewardRequestBody, RewardUrlBase, rankResponse.EventId);
+await SendMultiSlotReward(client, rewardRequestBody, MultiSlotRewardUrlBase, multiSlotRankResponse.EventId);
 ```
 
 ## Run the program

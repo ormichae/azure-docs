@@ -90,8 +90,8 @@ In this section you'll do two things:
 Construct the Rank / Reward URL's using the base url and the request headers using the resource key.
 
 ```javascript
-const RankUrl = PersonalizationBaseUrl.concat('personalizer/v1.1-preview.1/multislot/rank');
-const RewardUrlBase = PersonalizationBaseUrl.concat('personalizer/v1.1-preview.1/multislot/events/');
+const MultiSlotRankUrl = PersonalizationBaseUrl.concat('personalizer/v1.1-preview.1/multislot/rank');
+const MultiSlotRewardUrlBase = PersonalizationBaseUrl.concat('personalizer/v1.1-preview.1/multislot/events/');
 const Headers = {
     'apim-subscription-id': ResourceKey,
     'Content-Type': 'application/json'
@@ -223,9 +223,9 @@ function getSlots() {
 Send post requests to the Personalizer endpoint for multi-slot rank and reward calls.
 
 ```javascript
-async function sendRank(rankRequest) {
+async function sendMultiSlotRank(rankRequest) {
     try {
-        let response = await axios.post(RankUrl, rankRequest, { headers: Headers })
+        let response = await axios.post(MultiSlotRankUrl, rankRequest, { headers: Headers })
         return response.data;
     }
     catch (err) {
@@ -235,9 +235,9 @@ async function sendRank(rankRequest) {
 ```
 
 ```javascript
-async function sendReward(rewardRequest, eventId) {
+async function sendMultiSlotReward(rewardRequest, eventId) {
     try {
-        let rewardUrl = RewardUrlBase.concat(eventId, '/reward');
+        let rewardUrl = MultiSlotRewardUrlBase.concat(eventId, '/reward');
         let response = await axios.post(rewardUrl, rewardRequest, { headers: Headers })
     }
     catch (err) {
@@ -279,46 +279,46 @@ runLoop = true;
 (async () => {
     do {
 
-        let rankRequest = {};
+        let multiSlotRankRequest = {};
 
         // Generate an ID to associate with the request.
-        rankRequest.eventId = uuidv4();
+        multiSlotRankRequest.eventId = uuidv4();
 
         // Get context information from the user.
-        rankRequest.contextFeatures = getContextFeatures();
+        multiSlotRankRequest.contextFeatures = getContextFeatures();
 
         // Get the actions list to choose from personalization with their features.
-        rankRequest.actions = getActions();
+        multiSlotRankRequest.actions = getActions();
 
         // Get the list of slots for which Personalizer will pick the best action.
-        rankRequest.slots = getSlots();
+        multiSlotRankRequest.slots = getSlots();
 
-        rankRequest.deferActivation = false;
+        multiSlotRankRequest.deferActivation = false;
 
         //Rank the actions for each slot
         try {
-            var rankResponse = await sendRank(rankRequest);
+            var multiSlotRankResponse = await sendMultiSlotRank(multiSlotRankRequest);
         }
         catch (err) {
             console.log(err);
         }
 
-        let rewards = {};
-        rewards.reward = [];
+        let multiSlotrewards = {};
+        multiSlotrewards.reward = [];
 
-        for (i = 0; i < rankResponse.slots.length; i++) {
-            console.log('\nPersonalizer service decided you should display: '.concat(rankResponse.slots[i].rewardActionId, ' in slot ', rankResponse.slots[i].id, '\n');
+        for (i = 0; i < multiSlotRankResponse.slots.length; i++) {
+            console.log('\nPersonalizer service decided you should display: '.concat(multiSlotRankResponse.slots[i].rewardActionId, ' in slot ', multiSlotRankResponse.slots[i].id, '\n'));
 
             let slotReward = {};
-            slotReward.slotId = rankResponse.slots[i].id;
+            slotReward.slotId = multiSlotRankResponse.slots[i].id;
             // User agrees or disagrees with Personalizer decision for slot
             slotReward.value = getRewardForSlot();
-            rewards.reward.push(slotReward);
+            multiSlotrewards.reward.push(slotReward);
         }
 
         // Send the rewards for the event
         try {
-            await sendReward(rewards, rankResponse.eventId);
+            await sendMultiSlotReward(multiSlotrewards, multiSlotRankResponse.eventId);
         }
         catch (err) {
             console.log(err);
@@ -346,30 +346,30 @@ Add the following methods, which [get the content choices](#get-content-choices-
 
 ## Request the best action
 
-To complete the Rank request, the program asks the user's preferences to create content choices. The request body contains the context features, actions and their features, slots and their features, and a unique event ID, to receive the response. The `sendRank` method needs the rankRequest to send the multi-slot rank request.
+To complete the Rank request, the program asks the user's preferences to create content choices. The request body contains the context features, actions and their features, slots and their features, and a unique event ID, to receive the response. The `sendMultiSlotRank` method needs the rankRequest to send the multi-slot rank request.
 
 This quickstart has simple context features of time of day and user device. In production systems, determining and [evaluating](../concept-feature-evaluation.md) [actions and features](../concepts-features.md) can be a non-trivial matter.
 
 ```javascript
-let rankRequest = {};
+let multiSlotRankRequest = {};
 
 // Generate an ID to associate with the request.
-rankRequest.eventId = uuidv4();
+multiSlotRankRequest.eventId = uuidv4();
 
 // Get context information from the user.
-rankRequest.contextFeatures = getContextFeatures();
+multiSlotRankRequest.contextFeatures = getContextFeatures();
 
 // Get the actions list to choose from personalization with their features.
-rankRequest.actions = getActions();
+multiSlotRankRequest.actions = getActions();
 
 // Get the list of slots for which Personalizer will pick the best action.
-rankRequest.slots = getSlots();
+multiSlotRankRequest.slots = getSlots();
 
-rankRequest.deferActivation = false;
+multiSlotRankRequest.deferActivation = false;
 
 //Rank the actions for each slot
 try {
-    var rankResponse = await sendRank(rankRequest);
+    var multiSlotRankResponse = await sendMultiSlotRank(multiSlotRankRequest);
 }
 catch (err) {
     console.log(err);
@@ -378,27 +378,27 @@ catch (err) {
 
 ## Send a reward
 
-To get the reward score to send in the Reward request, the program gets the user's selection for each slot through the command line, assigns a numeric value to the selection, then sends the unique event ID, slot ID, and the reward score for each slot as the numeric value to the Reward API. Note that a reward does not need to be defined for each slot.
+To get the reward score to send in the Reward request, the program gets the user's selection for each slot through the command line, assigns a numeric value to the selection, then sends the unique event ID, slot ID, and the reward score for each slot as the numeric value to the `sendMultiSlotReward` method. Note that a reward does not need to be defined for each slot.
 
 This quickstart assigns a simple number as a reward score, either a zero or a 1. In production systems, determining when and what to send to the [Reward](../concept-rewards.md) call can be a non-trivial matter, depending on your specific needs.
 
 ```javascript
-let rewards = {};
-rewards.reward = [];
+let multiSlotrewards = {};
+multiSlotrewards.reward = [];
 
-for (i = 0; i < rankResponse.slots.length; i++) {
-    console.log('\nPersonalizer service decided you should display: '.concat(rankResponse.slots[i].rewardActionId, ' in slot ', rankResponse.slots[i].id, '\n');
+for (i = 0; i < multiSlotRankResponse.slots.length; i++) {
+    console.log('\nPersonalizer service decided you should display: '.concat(multiSlotRankResponse.slots[i].rewardActionId, ' in slot ', multiSlotRankResponse.slots[i].id, '\n'));
 
     let slotReward = {};
-    slotReward.slotId = rankResponse.slots[i].id;
+    slotReward.slotId = multiSlotRankResponse.slots[i].id;
     // User agrees or disagrees with Personalizer decision for slot
     slotReward.value = getRewardForSlot();
-    rewards.reward.push(slotReward);
+    multiSlotrewards.reward.push(slotReward);
 }
 
 // Send the rewards for the event
 try {
-    await sendReward(rewards, rankResponse.eventId);
+    await sendMultiSlotReward(multiSlotrewards, multiSlotRankResponse.eventId);
 }
 catch (err) {
     console.log(err);

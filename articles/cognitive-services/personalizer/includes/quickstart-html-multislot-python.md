@@ -68,8 +68,8 @@ In this section you'll do two things:
 Construct the Rank / Reward URL's using the base url and the request headers using the resource key.
 
 ```python
-RANK_URL = '{0}personalizer/v1.1-preview.1/multislot/rank'.format(PERSONALIZATION_BASE_URL)
-REWARD_URL_BASE = '{0}personalizer/v1.1-preview.1/multislot/events/'.format(PERSONALIZATION_BASE_URL)
+MULTI_SLOT_RANK_URL = '{0}personalizer/v1.1-preview.1/multislot/rank'.format(PERSONALIZATION_BASE_URL)
+MULTI_SLOT_REWARD_URL_BASE = '{0}personalizer/v1.1-preview.1/multislot/events/'.format(PERSONALIZATION_BASE_URL)
 HEADERS = {
     'apim-subscription-id': RESOURCE_KEY,
     'Content-Type': 'application/json'
@@ -202,15 +202,15 @@ def get_slots():
 Send post requests to the Personalizer endpoint for multi-slot rank and reward calls.
 
 ```python
-def send_rank(rank_request):
-    response = requests.post(RANK_URL, data=json.dumps(rank_request), headers=HEADERS )
-    return json.loads(response.text)
+def send_multi_slot_rank(rank_request):
+    multi_slot_response = requests.post(MULTI_SLOT_RANK_URL, data=json.dumps(rank_request), headers=HEADERS )
+    return json.loads(multi_slot_response.text)
 ```
 
 ```python
-def send_reward(reward_request, event_id):
-    reward_url = '{0}{1}/reward'.format(REWARD_URL_BASE, event_id)
-    res = requests.post(reward_url, data=json.dumps(reward_request), headers=HEADERS)
+def send_multi_slot_reward(reward_request, event_id):
+    reward_url = '{0}{1}/reward'.format(MULTI_SLOT_REWARD_URL_BASE, event_id)
+    requests.post(reward_url, data=json.dumps(reward_request), headers=HEADERS)
 ```
 
 ## Get feedback for personalizer decisions
@@ -255,19 +255,19 @@ while run_loop:
       }
 
     #Rank the actions for each slot
-    rank_response = send_rank(rank_request)
-    rewards = {"reward": []}
+    multi_slot_rank_response = send_multi_slot_rank(rank_request)
+    multi_slot_rewards = {"reward": []}
 
-    for i in range(len(rank_response['slots'])):
-        print('\nPersonalizer service decided you should display: {0} in slot {1}\n'.format(rank_response['slots'][i]['rewardActionId'], rank_response['slots'][i]['id']))
+    for i in range(len(multi_slot_rank_response['slots'])):
+        print('\nPersonalizer service decided you should display: {0} in slot {1}\n'.format(multi_slot_rank_response['slots'][i]['rewardActionId'], multi_slot_rank_response['slots'][i]['id']))
 
-        slot_reward = {'slotId': rank_response['slots'][i]['id']}
+        slot_reward = {'slotId': multi_slot_rank_response['slots'][i]['id']}
         # User agrees or disagrees with Personalizer decision for slot
         slot_reward['value'] = get_reward_for_slot()
-        rewards['reward'].append(slot_reward)
+        multi_slot_rewards['reward'].append(slot_reward)
 
     # Send the rewards for the event
-    send_reward(rewards, rank_response['eventId'])
+    send_multi_slot_reward(multi_slot_rewards, multi_slot_rank_response['eventId'])
 
     answer = input('\nPress q to break, any other key to continue:\n').upper()
     if (answer == 'Q'):
@@ -287,47 +287,47 @@ Add the following methods, which [get the content choices](#get-content-choices-
 
 ## Request the best action
 
-To complete the Rank request, the program asks the user's preferences to create content choices. The request body contains the context features, actions and their features, slots and their features, and a unique event ID, to receive the response. The `send_rank` method needs the rank_equest to send the multi-slot rank request.
+To complete the Rank request, the program asks the user's preferences to create content choices. The request body contains the context features, actions and their features, slots and their features, and a unique event ID, to receive the response. The `send_multi_slot_rank` method needs the rank_equest to send the multi-slot rank request.
 
 This quickstart has simple context features of time of day and user device. In production systems, determining and [evaluating](../concept-feature-evaluation.md) [actions and features](../concepts-features.md) can be a non-trivial matter.
 
 ```python
 eventId = str(uuid.uuid4())
-    context = get_context_features()
-    actions = get_actions()
-    slots = get_slots()
+context = get_context_features()
+actions = get_actions()
+slots = get_slots()
 
-    rank_request = {
-        "eventId": eventId,
-        "contextFeatures": context,
-        "actions": actions,
-        "slots": slots,
-        "deferActivation": False
-      }
+rank_request = {
+    "eventId": eventId,
+    "contextFeatures": context,
+    "actions": actions,
+    "slots": slots,
+    "deferActivation": False
+    }
 
-    #Rank the actions for each slot
-    rank_response = send_rank(rank_request)
+#Rank the actions for each slot
+multi_slot_rank_response = send_multi_slot_rank(rank_request)
 ```
 
 ## Send a reward
 
-To get the reward score to send in the Reward request, the program gets the user's selection for each slot through the command line, assigns a numeric value to the selection, then sends the unique event ID, slot ID, and the reward score for each slot as the numeric value to the Reward API. Note that a reward does not need to be defined for each slot.
+To get the reward score to send in the Reward request, the program gets the user's selection for each slot through the command line, assigns a numeric value to the selection, then sends the unique event ID, slot ID, and the reward score for each slot as the numeric value to the `send_multi_slot_reward` method. Note that a reward does not need to be defined for each slot.
 
 This quickstart assigns a simple number as a reward score, either a zero or a 1. In production systems, determining when and what to send to the [Reward](../concept-rewards.md) call can be a non-trivial matter, depending on your specific needs.
 
 ```python
-rewards = {"reward": []}
+multi_slot_rewards = {"reward": []}
 
-for i in range(len(rank_response['slots'])):
-    print('\nPersonalizer service decided you should display: {0} in slot {1}\n'.format(rank_response['slots'][i]['rewardActionId'], rank_response['slots'][i]['id']))
+for i in range(len(multi_slot_rank_response['slots'])):
+    print('\nPersonalizer service decided you should display: {0} in slot {1}\n'.format(multi_slot_rank_response['slots'][i]['rewardActionId'], multi_slot_rank_response['slots'][i]['id']))
 
-    slot_reward = {'slotId': rank_response['slots'][i]['id']}
+    slot_reward = {'slotId': multi_slot_rank_response['slots'][i]['id']}
     # User agrees or disagrees with Personalizer decision for slot
     slot_reward['value'] = get_reward_for_slot()
-    rewards['reward'].append(slot_reward)
+    multi_slot_rewards['reward'].append(slot_reward)
 
 # Send the rewards for the event
-send_reward(rewards, rank_response['eventId'])
+send_multi_slot_reward(multi_slot_rewards, multi_slot_rank_response['eventId'])
 ```
 
 ## Run the program
